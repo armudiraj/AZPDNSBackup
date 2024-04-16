@@ -5,62 +5,50 @@
     "storageAccountName": {
       "type": "string",
       "metadata": {
-        "description": "Name of the Storage Account"
+        "description": "Name of the Storage Account in which the backups function app is stored"
       }
     },
     "functionAppName": {
       "type": "string",
       "metadata": {
-        "description": "Name of the Azure Function App"
+        "description": "Name of the Azure Function App that backs up the Private DNS Zone records"
       }
     },
     "DNSZoneName": {
       "type": "string",
       "metadata": {
-        "description": "The name of the Private DNS Zone"
+        "description": "The name of the Private DNS Zone that needs to be backedup"
       }
     },
     "TenantId": {
       "type": "string",
       "metadata": {
-        "description": "ID of the Azure AD tenant"
+        "description": "Tenant ID of the Azure AD tenant where the Private DNS Zone is hosted"
       }
     },
     "DNSZoneResourceGroup": {
       "type": "string",
       "metadata": {
-        "description": "Name of the Azure Resource Group"
+        "description": "Name of the Azure Resource Group where the DNS zone is hosted"
       }
     },
     "TimerInterval": {
       "type": "string",
       "metadata": {
-        "description": "Interval for the timer trigger in Azure Functions"
-      }
-    },
-    "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Location for all resources."
-      }
-    },
-    "functionAppZipUri": {
-      "type": "string",
-      "metadata": {
-        "description": "The URI to the ZIP file containing the Azure Function code"
+        "description": "Interval for the timer trigger in Azure Functions '0 */1 * * * *' for every minute, '0 0 */1 * * *' for every hour, '0 0 0 */1 * *' for every day at midnight, '0 0 0 0 */1 *' for every week at midnight on Sunday, '0 0 0 0 0 */1' for every month at midnight on the first day of the month"
       }
     }
   },
   "variables": {
-    "managedIdentityName": "[concat(parameters('functionAppName'), '-mi')]"
+    "location": "[resourceGroup().location]",
+    "functionAppZipUri": "https://bkpstoragetest.blob.core.windows.net/functionstore/host.zip?sp=r&st=2024-04-12T07:33:09Z&se=2024-04-30T15:33:09Z&spr=https&sv=2022-11-02&sr=b&sig=2OAkjWM1B86fkW%2B2%2BatocTWcBLdTk0ngDqfbVAXeVGA%3D"
   },
   "resources": [
     {
       "type": "Microsoft.Storage/storageAccounts",
       "apiVersion": "2019-06-01",
       "name": "[parameters('storageAccountName')]",
-      "location": "[parameters('location')]",
+      "location": "[variables('location')]",
       "sku": {
         "name": "Standard_LRS"
       },
@@ -87,7 +75,7 @@
       "kind": "functionapp",
       "apiVersion": "2018-11-01",
       "name": "[parameters('functionAppName')]",
-      "location": "[parameters('location')]",
+      "location": "[variables('location')]",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
       ],
@@ -104,7 +92,7 @@
             },
             {
               "name": "WEBSITE_RUN_FROM_PACKAGE",
-              "value": "[parameters('functionAppZipUri')]"
+              "value": "[variables('functionAppZipUri')]"
             },
             {
               "name": "SubscriptionId",
@@ -137,19 +125,7 @@
       "identity": {
         "type": "SystemAssigned"
       }
-    },
-{
-  "type": "Microsoft.Authorization/roleAssignments",
-  "apiVersion": "2020-04-01-preview",
-  "name": "[guid(concat('Microsoft.Subscription', subscription().subscriptionId), 'roleAssignmentName')]",
-  "properties": {
-    "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]", // Role definition ID for Private DNS Zone Contributor
-    "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2018-11-01', 'Full').identity.principalId]",
-    "scope": "[subscription().id]"
-  }
-}
-
-
+    }
   ],
   "outputs": {}
 }
